@@ -6,7 +6,6 @@
     <title>3D Printer Control</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Все стили остаются без изменений */
         :root {
             --primary: #0088cc;
             --danger: #e74c3c;
@@ -335,10 +334,13 @@
         webApp.ready();
         webApp.expand();
         webApp.MainButton.hide();
+        webApp.enableClosingConfirmation();
         
         // Функция отправки команд
         function sendCommand(command) {
-            webApp.sendData(JSON.stringify({ command }));
+            const data = { command };
+            webApp.sendData(JSON.stringify(data));
+            console.log("Отправлена команда:", data);
             showNotification(`Отправлено: ${command}`);
             
             // Для команд, меняющих состояние, запрашиваем статус через 2 секунды
@@ -521,40 +523,44 @@
             lastStatus = status;
         }
         
-        // Обработчик входящих данных от бота
-        webApp.onEvent('webAppDataReceived', (event) => {
+        // Обработчик входящих сообщений от бота
+        Telegram.WebApp.onEvent('message', (event) => {
             try {
-                const data = JSON.parse(event.data);
-                console.log("Получены данные от бота:", data);
+                console.log("Получено сообщение:", event);
                 
-                // Обработка статуса
-                if (data.status) {
-                    updateStatusUI(data.status);
-                }
-                
-                // Обработка результата команды
-                if (data.result) {
-                    showNotification(data.result);
-                }
-                
-                // Обработка ошибки
-                if (data.error) {
-                    showNotification(data.error);
-                }
-                
-                // Обновляем индикатор подключения
-                const indicator = document.getElementById('status-indicator');
-                const statusText = document.getElementById('status-text');
-                
-                if (data.status || data.result) {
-                    indicator.className = 'status-indicator status-connected';
-                    statusText.textContent = 'Подключено';
-                } else {
-                    indicator.className = 'status-indicator status-disconnected';
-                    statusText.textContent = 'Ошибка подключения';
+                if (event.message && event.message.text) {
+                    const data = JSON.parse(event.message.text);
+                    console.log("Данные от бота:", data);
+                    
+                    // Обработка статуса
+                    if (data.status) {
+                        updateStatusUI(data.status);
+                    }
+                    
+                    // Обработка результата команды
+                    if (data.result) {
+                        showNotification(data.result);
+                    }
+                    
+                    // Обработка ошибки
+                    if (data.error) {
+                        showNotification(data.error);
+                    }
+                    
+                    // Обновляем индикатор подключения
+                    const indicator = document.getElementById('status-indicator');
+                    const statusText = document.getElementById('status-text');
+                    
+                    if (data.status || data.result) {
+                        indicator.className = 'status-indicator status-connected';
+                        statusText.textContent = 'Подключено';
+                    } else {
+                        indicator.className = 'status-indicator status-disconnected';
+                        statusText.textContent = 'Ошибка подключения';
+                    }
                 }
             } catch (e) {
-                console.error('Ошибка обработки данных:', e);
+                console.error('Ошибка обработки сообщения:', e);
             }
         });
         
