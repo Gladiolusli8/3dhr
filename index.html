@@ -6,6 +6,7 @@
     <title>3D Printer Control</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        /* Все стили остаются без изменений */
         :root {
             --primary: #0088cc;
             --danger: #e74c3c;
@@ -189,7 +190,6 @@
             height: 12px;
             border-radius: 50%;
             margin-right: 8px;
-            background-color: #777;
         }
         .status-connected {
             background-color: #2ecc71;
@@ -233,8 +233,8 @@
                 <div class="status-card">
                     <div>Статус подключения</div>
                     <div class="status-value" id="connection-status">
-                        <span class="status-indicator" id="status-indicator"></span>
-                        <span id="status-text">Загрузка...</span>
+                        <span class="status-indicator status-disconnected" id="status-indicator"></span>
+                        <span id="status-text">Ожидание подключения...</span>
                     </div>
                 </div>
             </div>
@@ -328,14 +328,8 @@
     <script>
         const webApp = Telegram.WebApp;
         let currentFile = null;
-        let printerStatus = {
-            nozzle_temp: '--',
-            bed_temp: '--',
-            x: '--',
-            y: '--',
-            z: '--',
-            state: '--'
-        };
+        let lastStatus = null;
+        let statusInterval;
         
         // Инициализация приложения
         webApp.ready();
@@ -346,6 +340,13 @@
         function sendCommand(command) {
             webApp.sendData(JSON.stringify({ command }));
             showNotification(`Отправлено: ${command}`);
+            
+            // Для команд, меняющих состояние, запрашиваем статус через 2 секунды
+            if (command !== 'status') {
+                setTimeout(() => {
+                    sendCommand('status');
+                }, 2000);
+            }
         }
         
         // Функция показа уведомлений
@@ -369,12 +370,10 @@
             // Показать превью
             document.getElementById('model-preview-container').classList.remove('hidden');
             
-            // Для STL файлов можно попробовать показать 3D превью
             if (file.name.toLowerCase().endsWith('.stl')) {
                 document.getElementById('model-preview').innerHTML = 
                     `<p>Предпросмотр STL недоступен в этом интерфейсе</p>`;
             } 
-            // Для G-кода можно показать текстовый превью
             else if (file.name.toLowerCase().endsWith('.gcode')) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -497,63 +496,75 @@
         }
         
         // Обновление UI статуса
-        function updateStatusUI() {
+        function updateStatusUI(status) {
+            if (!status) return;
+            
             document.getElementById('nozzle-temp').textContent = 
-                `${printerStatus.nozzle_temp}°C`;
+                `${status.nozzle_temp || '--'}°C`;
             document.getElementById('bed-temp').textContent = 
-                `${printerStatus.bed_temp}°C`;
+                `${status.bed_temp || '--'}°C`;
             document.getElementById('position').textContent = 
-                `${printerStatus.x}/${printerStatus.y}/${printerStatus.z}`;
-            document.getElementById('printer-state').textContent = 
-                printerStatus.state;
+                `${status.x || '--'}/${status.y || '--'}/${status.z || '--'}`;
+            
+            // Обновляем индикатор подключения
+            const indicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+            
+            if (status.state && status.state !== '--') {
+                indicator.className = 'status-indicator status-connected';
+                statusText.textContent = status.state;
+            } else {
+                indicator.className = 'status-indicator status-disconnected';
+                statusText.textContent = 'Ожидание подключения...';
+            }
+            
+            lastStatus = status;
         }
         
-        // Обработчик входящих сообщений от бота
-        webApp.onEvent('message', (event) => {
+        // Обработчик входящих данных от бота
+        webApp.onEvent('webAppDataReceived', (event) => {
             try {
-                const message = event.message;
-                if (message.text && message.text.startsWith('STATUS_UPDATE:')) {
-                    // Парсим обновление статуса
-                    const jsonString = message.text.substring('STATUS_UPDATE:'.length);
-                    const statusData = JSON.parse(jsonString);
-                    
-                    // Обновляем глобальный статус
-                    printerStatus = {
-                        nozzle_temp: statusData.nozzle_temp || '--',
-                        bed_temp: statusData.bed_temp || '--',
-                        x: statusData.x || '--',
-                        y: statusData.y || '--',
-                        z: statusData.z || '--',
-                        state: statusData.state || '--'
-                    };
-                    
-                    // Обновляем UI
-                    updateStatusUI();
-                    
-                    // Обновляем индикатор подключения
-                    document.getElementById('status-indicator').className = 
-                        'status-indicator status-connected';
-                    document.getElementById('status-text').textContent = 'Подключено';
-                    
-                    showNotification('Статус принтера обновлен');
+                const data = JSON.parse(event.data);
+                console.log("Получены данные от бота:", data);
+                
+                // Обработка статуса
+                if (data.status) {
+                    updateStatusUI(data.status);
+                }
+                
+                // Обработка результата команды
+                if (data.result) {
+                    showNotification(data.result);
+                }
+                
+                // Обработка ошибки
+                if (data.error) {
+                    showNotification(data.error);
+                }
+                
+                // Обновляем индикатор подключения
+                const indicator = document.getElementById('status-indicator');
+                const statusText = document.getElementById('status-text');
+                
+                if (data.status || data.result) {
+                    indicator.className = 'status-indicator status-connected';
+                    statusText.textContent = 'Подключено';
+                } else {
+                    indicator.className = 'status-indicator status-disconnected';
+                    statusText.textContent = 'Ошибка подключения';
                 }
             } catch (e) {
-                console.error('Ошибка обработки сообщения:', e);
+                console.error('Ошибка обработки данных:', e);
             }
         });
         
         // Инициализация статуса
         function initStatus() {
             // Запрашиваем начальный статус
-            sendCommand('get_initial_status');
+            sendCommand('status');
             
-            // Устанавливаем индикатор подключения
-            document.getElementById('status-indicator').className = 
-                'status-indicator status-disconnected';
-            document.getElementById('status-text').textContent = 'Ожидание данных...';
-            
-            // Обновляем статус каждые 10 секунд
-            setInterval(() => {
+            // Периодический запрос статуса
+            statusInterval = setInterval(() => {
                 sendCommand('status');
             }, 10000);
         }
