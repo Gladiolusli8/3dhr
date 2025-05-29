@@ -183,6 +183,20 @@
         .hidden {
             display: none;
         }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            background-color: #777;
+        }
+        .status-connected {
+            background-color: #2ecc71;
+        }
+        .status-disconnected {
+            background-color: #e74c3c;
+        }
         @media (max-width: 600px) {
             .container {
                 padding: 15px;
@@ -217,8 +231,11 @@
                     <div class="status-value" id="position">--/--/--</div>
                 </div>
                 <div class="status-card">
-                    <div>Состояние</div>
-                    <div class="status-value" id="printer-state">Готов</div>
+                    <div>Статус подключения</div>
+                    <div class="status-value" id="connection-status">
+                        <span class="status-indicator" id="status-indicator"></span>
+                        <span id="status-text">Загрузка...</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -280,7 +297,6 @@
             
             <div id="settings-panel" class="hidden">
                 <h3>⚙️ Настройки печати</h3>
-                <!-- Поля настроек будут добавлены динамически -->
                 <div id="settings-fields"></div>
                 <button class="btn btn-primary" onclick="applySettings()">
                     Применить настройки
@@ -312,7 +328,14 @@
     <script>
         const webApp = Telegram.WebApp;
         let currentFile = null;
-        let printerStatusInterval;
+        let printerStatus = {
+            nozzle_temp: '--',
+            bed_temp: '--',
+            x: '--',
+            y: '--',
+            z: '--',
+            state: '--'
+        };
         
         // Инициализация приложения
         webApp.ready();
@@ -412,13 +435,14 @@
             
             let html = '';
             settings.forEach(setting => {
-                html += `<div class="setting-field">
-                    <label for="${setting.id}">${setting.label}</label>`;
+                html += `<div class="setting-field" style="margin-bottom: 15px;">
+                    <label for="${setting.id}" style="display: block; margin-bottom: 5px;">${setting.label}</label>`;
                 
                 if (setting.type === 'checkbox') {
-                    html += `<input type="checkbox" id="${setting.id}">`;
+                    html += `<input type="checkbox" id="${setting.id}" style="width: 20px; height: 20px;">`;
                 } else {
-                    html += `<input type="${setting.type}" id="${setting.id}" value="${setting.value || ''}">`;
+                    html += `<input type="${setting.type}" id="${setting.id}" value="${setting.value || ''}" 
+                           style="width: 100%; padding: 8px; border-radius: 5px; border: none; background: rgba(255,255,255,0.1); color: white;">`;
                 }
                 
                 html += `</div>`;
@@ -472,40 +496,70 @@
             }, 1000);
         }
         
-        // Периодический запрос статуса
-        function startStatusUpdates() {
-            // Отправляем запрос статуса каждые 10 секунд
-            printerStatusInterval = setInterval(() => {
-                sendCommand('status');
-            }, 10000);
-            
-            // Первый запрос
-            sendCommand('status');
+        // Обновление UI статуса
+        function updateStatusUI() {
+            document.getElementById('nozzle-temp').textContent = 
+                `${printerStatus.nozzle_temp}°C`;
+            document.getElementById('bed-temp').textContent = 
+                `${printerStatus.bed_temp}°C`;
+            document.getElementById('position').textContent = 
+                `${printerStatus.x}/${printerStatus.y}/${printerStatus.z}`;
+            document.getElementById('printer-state').textContent = 
+                printerStatus.state;
         }
         
-        // Обработка входящих данных от устройства
-        webApp.onEvent('webAppDataReceived', event => {
+        // Обработчик входящих сообщений от бота
+        webApp.onEvent('message', (event) => {
             try {
-                const data = JSON.parse(event.data);
-                
-                if (data.status) {
-                    // Обновляем статус принтера
-                    document.getElementById('nozzle-temp').textContent = 
-                        `${data.status.nozzle_temp || '--'}°C`;
-                    document.getElementById('bed-temp').textContent = 
-                        `${data.status.bed_temp || '--'}°C`;
-                    document.getElementById('position').textContent = 
-                        `${data.status.x || '--'}/${data.status.y || '--'}/${data.status.z || '--'}`;
-                    document.getElementById('printer-state').textContent = 
-                        data.status.state || '--';
+                const message = event.message;
+                if (message.text && message.text.startsWith('STATUS_UPDATE:')) {
+                    // Парсим обновление статуса
+                    const jsonString = message.text.substring('STATUS_UPDATE:'.length);
+                    const statusData = JSON.parse(jsonString);
+                    
+                    // Обновляем глобальный статус
+                    printerStatus = {
+                        nozzle_temp: statusData.nozzle_temp || '--',
+                        bed_temp: statusData.bed_temp || '--',
+                        x: statusData.x || '--',
+                        y: statusData.y || '--',
+                        z: statusData.z || '--',
+                        state: statusData.state || '--'
+                    };
+                    
+                    // Обновляем UI
+                    updateStatusUI();
+                    
+                    // Обновляем индикатор подключения
+                    document.getElementById('status-indicator').className = 
+                        'status-indicator status-connected';
+                    document.getElementById('status-text').textContent = 'Подключено';
+                    
+                    showNotification('Статус принтера обновлен');
                 }
             } catch (e) {
-                console.error('Error parsing data:', e);
+                console.error('Ошибка обработки сообщения:', e);
             }
         });
         
-        // Запускаем обновление статуса при старте
-        startStatusUpdates();
+        // Инициализация статуса
+        function initStatus() {
+            // Запрашиваем начальный статус
+            sendCommand('get_initial_status');
+            
+            // Устанавливаем индикатор подключения
+            document.getElementById('status-indicator').className = 
+                'status-indicator status-disconnected';
+            document.getElementById('status-text').textContent = 'Ожидание данных...';
+            
+            // Обновляем статус каждые 10 секунд
+            setInterval(() => {
+                sendCommand('status');
+            }, 10000);
+        }
+        
+        // Запускаем инициализацию при загрузке
+        initStatus();
     </script>
 </body>
 </html>
