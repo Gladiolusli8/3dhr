@@ -3,33 +3,49 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>3D Printer Panel</title>
+  <title>TEST WebApp</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 20px; background: #f0f0f0; }
-    h1 { text-align: center; }
+    body { font-family: sans-serif; padding: 20px; }
     .btn {
-      display: block; width: 100%; padding: 15px; margin: 10px 0;
-      font-size: 18px; border: none; border-radius: 8px;
-      background-color: #0088cc; color: white; cursor: pointer;
+      display: block;
+      margin: 10px 0;
+      padding: 12px;
+      background: #0088cc;
+      color: white;
+      border: none;
+      font-size: 18px;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
-  <h1>Управление 3D-принтером</h1>
-  <button class="btn" onclick="sendCommand('home')">🏠 Home</button>
-  <button class="btn" onclick="sendCommand('preheat')">🔥 Прогрев</button>
-  <button class="btn" onclick="sendCommand('status')">📊 Статус</button>
-  <button class="btn" onclick="sendCommand('pause')">⏸ Пауза</button>
-  <button class="btn" onclick="sendCommand('resume')">▶ Продолжить</button>
-  <button class="btn" onclick="sendCommand('stop')">🛑 Стоп</button>
+  <h1>WebApp test</h1>
+  <button class="btn" onclick="send()">🛰 Отправить команду</button>
+  <p id="log"></p>
 
   <script>
-    const tg = window.Telegram.WebApp;
-    tg.ready(); tg.expand();
+    let log = (msg) => {
+      document.getElementById("log").textContent = msg;
+      console.log(msg);
+    };
 
-    function sendCommand(cmd) {
-      tg.sendData(JSON.stringify({ command: cmd }));
+    window.addEventListener("DOMContentLoaded", () => {
+      if (!window.Telegram || !Telegram.WebApp) {
+        alert("❌ НЕ в Telegram WebApp");
+        return;
+      }
+
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+      log("✅ Telegram WebApp готов");
+    });
+
+    function send() {
+      if (!Telegram.WebApp) return log("⛔ WebApp API не доступен");
+      const payload = { command: "test" };
+      log("📤 Отправка: " + JSON.stringify(payload));
+      Telegram.WebApp.sendData(JSON.stringify(payload));
     }
   </script>
 </body>
