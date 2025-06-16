@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mini App Direct Connect</title>
+    <title>Mini App Cloud Integration</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 0 auto;
             padding: 20px;
             background: #f5f7fa;
         }
@@ -18,26 +18,8 @@
             border-radius: 15px;
             padding: 20px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-        }
-        .input-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            box-sizing: border-box;
+            max-width: 600px;
+            margin: 0 auto;
         }
         .btn {
             display: block;
@@ -50,8 +32,8 @@
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-            transition: background 0.3s;
             margin: 20px 0;
+            transition: background 0.3s;
         }
         .btn:hover {
             background: #006699;
@@ -60,50 +42,46 @@
             padding: 15px;
             border-radius: 8px;
             text-align: center;
-            margin-top: 20px;
-            display: none;
+            margin: 20px 0;
         }
         .success {
             background: #d4edda;
             color: #155724;
-            display: block;
         }
         .error {
             background: #f8d7da;
             color: #721c24;
-            display: block;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Прямое подключение к устройству</h1>
-        
-        <div class="input-group">
-            <label for="wsUrl">WebSocket URL устройства:</label>
-            <input type="text" id="wsUrl" placeholder="ws://192.168.1.100:8765">
+        <h1>Управление через облако</h1>
+        <div id="connectionStatus" class="status">
+            Инициализация...
         </div>
         
-        <button class="btn" onclick="connectToDevice()">
-            Подключиться к устройству
+        <button id="sendButton" class="btn" disabled>
+            Отправить мой ID на устройство
         </button>
-        
-        <div id="connectionStatus" class="status"></div>
-        
-        <div id="userInfo" style="display: none;">
-            <h2>Ваша информация</h2>
-            <p>Telegram ID: <span id="userId"></span></p>
-            <p>Имя: <span id="userName"></span></p>
-            
-            <button class="btn" onclick="sendUserId()">
-                Отправить мой ID на устройство
-            </button>
-            
-            <div id="sendStatus" class="status"></div>
-        </div>
     </div>
 
     <script>
+        // Конфигурация Firebase (замените на вашу)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAWistbI1pA54O91JiX9SJ25k67gJe2OAQ",
+            authDomain: "dhr-1e5f3.firebaseapp.com",
+            databaseURL: "https://dhr-1e5f3-default-rtdb.firebaseio.com",
+            projectId: "dhr-1e5f3",
+            storageBucket: "dhr-1e5f3.firebasestorage.app",
+            messagingSenderId: "833662368432",
+            appId: "1:833662368432:web:f616b2a0f4a8f54f345975"
+        };
+        
+        // Инициализация Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        
         // Инициализация Telegram WebApp
         const webApp = Telegram.WebApp;
         webApp.ready();
@@ -111,106 +89,52 @@
         
         // Элементы интерфейса
         const connectionStatus = document.getElementById('connectionStatus');
-        const sendStatus = document.getElementById('sendStatus');
-        const userInfoSection = document.getElementById('userInfo');
-        const userIdElement = document.getElementById('userId');
-        const userNameElement = document.getElementById('userName');
+        const sendButton = document.getElementById('sendButton');
         
-        let websocket = null;
-        let userData = null;
+        // Состояние
+        let firebaseInitialized = false;
         
-        // Получаем информацию о пользователе
-        function getUserInfo() {
+        // Инициализация Firebase
+        try {
+            firebase.app(); // Проверяем инициализацию
+            firebaseInitialized = true;
+            connectionStatus.textContent = "Firebase подключен!";
+            connectionStatus.className = "status success";
+            sendButton.disabled = false;
+        } catch (e) {
+            connectionStatus.textContent = "Ошибка подключения к Firebase";
+            connectionStatus.className = "status error";
+            console.error("Firebase init error:", e);
+        }
+        
+        // Отправка данных на устройство
+        sendButton.addEventListener('click', () => {
+            if (!firebaseInitialized) {
+                webApp.showAlert("Ошибка: Firebase не инициализирован");
+                return;
+            }
+            
+            // Получаем информацию о пользователе
             const initData = webApp.initDataUnsafe;
-            return {
+            const userData = {
                 user_id: initData.user?.id || 'unknown',
                 username: initData.user?.username || 'unknown',
-                full_name: [initData.user?.first_name, initData.user?.last_name]
-                    .filter(Boolean).join(' ') || 'unknown'
-            };
-        }
-        
-        // Подключение к устройству
-        function connectToDevice() {
-            const wsUrl = document.getElementById('wsUrl').value;
-            if (!wsUrl) {
-                showError('Введите URL устройства');
-                return;
-            }
-            
-            try {
-                websocket = new WebSocket(wsUrl);
-                
-                websocket.onopen = () => {
-                    connectionStatus.className = 'status success';
-                    connectionStatus.textContent = 'Успешно подключено к устройству!';
-                    
-                    // Показываем информацию о пользователе
-                    userData = getUserInfo();
-                    userIdElement.textContent = userData.user_id;
-                    userNameElement.textContent = userData.full_name;
-                    userInfoSection.style.display = 'block';
-                };
-                
-                websocket.onerror = (error) => {
-                    showError(`Ошибка подключения: ${error.message}`);
-                };
-                
-                websocket.onclose = (event) => {
-                    if (!event.wasClean) {
-                        showError(`Соединение прервано: ${event.reason || 'Unknown reason'}`);
-                    }
-                };
-                
-                websocket.onmessage = (event) => {
-                    try {
-                        const response = JSON.parse(event.data);
-                        if (response.status === 'success') {
-                            sendStatus.className = 'status success';
-                            sendStatus.textContent = response.message;
-                        } else {
-                            sendStatus.className = 'status error';
-                            sendStatus.textContent = response.message || 'Ошибка на устройстве';
-                        }
-                    } catch (e) {
-                        sendStatus.className = 'status error';
-                        sendStatus.textContent = 'Неверный ответ от устройства';
-                    }
-                };
-                
-            } catch (e) {
-                showError(`Ошибка создания подключения: ${e.message}`);
-            }
-        }
-        
-        // Отправка ID пользователя
-        function sendUserId() {
-            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
-                showError('Нет подключения к устройству');
-                return;
-            }
-            
-            if (!userData) {
-                showError('Информация о пользователе не получена');
-                return;
-            }
-            
-            const data = {
-                action: 'user_id_sent',
-                ...userData
+                full_name: `${initData.user?.first_name || ''} ${initData.user?.last_name || ''}`.trim() || 'unknown',
+                action: "user_id_sent",
+                timestamp: new Date().toISOString()
             };
             
-            websocket.send(JSON.stringify(data));
-            sendStatus.className = 'status';
-            sendStatus.textContent = 'Отправка данных...';
-            sendStatus.style.display = 'block';
-        }
-        
-        function showError(message) {
-            connectionStatus.className = 'status error';
-            connectionStatus.textContent = message;
-            connectionStatus.style.display = 'block';
-        }
+            // Отправляем в Firebase
+            const commandRef = database.ref('commands').push();
+            commandRef.set(userData)
+                .then(() => {
+                    webApp.showAlert("✅ Ваш ID отправлен на устройство!");
+                })
+                .catch(error => {
+                    console.error("Firebase error:", error);
+                    webApp.showAlert("❌ Ошибка отправки данных: " + error.message);
+                });
+        });
     </script>
 </body>
 </html>
