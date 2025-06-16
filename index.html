@@ -1,35 +1,54 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Mini App</title>
+    <title>Mini App Direct Connect</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: #f0f2f5;
-            margin: 0;
             font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f7fa;
         }
         .container {
-            text-align: center;
-            padding: 20px;
             background: white;
             border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            max-width: 90%;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
         }
         .btn {
-            padding: 15px 30px;
-            font-size: 18px;
+            display: block;
+            width: 100%;
+            padding: 15px;
             background: #0088cc;
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
             cursor: pointer;
             transition: background 0.3s;
             margin: 20px 0;
@@ -37,27 +56,50 @@
         .btn:hover {
             background: #006699;
         }
-        .user-id {
-            font-size: 16px;
-            margin-top: 20px;
-            word-break: break-all;
-            background: #f8f9fa;
-            padding: 10px;
+        .status {
+            padding: 15px;
             border-radius: 8px;
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Тестовое Mini App</h1>
-        <p>Нажмите кнопку, чтобы отправить ваш Telegram ID на устройство</p>
+        <h1>Прямое подключение к устройству</h1>
         
-        <button class="btn" onclick="sendUserId()">
-            Отправить мой ID
+        <div class="input-group">
+            <label for="wsUrl">WebSocket URL устройства:</label>
+            <input type="text" id="wsUrl" placeholder="ws://192.168.1.100:8765">
+        </div>
+        
+        <button class="btn" onclick="connectToDevice()">
+            Подключиться к устройству
         </button>
         
-        <div class="user-id">
-            Ваш Telegram ID: <span id="userIdDisplay">---</span>
+        <div id="connectionStatus" class="status"></div>
+        
+        <div id="userInfo" style="display: none;">
+            <h2>Ваша информация</h2>
+            <p>Telegram ID: <span id="userId"></span></p>
+            <p>Имя: <span id="userName"></span></p>
+            
+            <button class="btn" onclick="sendUserId()">
+                Отправить мой ID на устройство
+            </button>
+            
+            <div id="sendStatus" class="status"></div>
         </div>
     </div>
 
@@ -67,19 +109,107 @@
         webApp.ready();
         webApp.expand();
         
-        // Отображаем ID пользователя
-        const userId = webApp.initDataUnsafe.user?.id || 'не определен';
-        document.getElementById('userIdDisplay').textContent = userId;
+        // Элементы интерфейса
+        const connectionStatus = document.getElementById('connectionStatus');
+        const sendStatus = document.getElementById('sendStatus');
+        const userInfoSection = document.getElementById('userInfo');
+        const userIdElement = document.getElementById('userId');
+        const userNameElement = document.getElementById('userName');
         
-        function sendUserId() {
-            // Отправляем данные в бота
-            webApp.sendData(JSON.stringify({
-                action: "user_id_sent",
-                user_id: userId
-            }));
+        let websocket = null;
+        let userData = null;
+        
+        // Получаем информацию о пользователе
+        function getUserInfo() {
+            const initData = webApp.initDataUnsafe;
+            return {
+                user_id: initData.user?.id || 'unknown',
+                username: initData.user?.username || 'unknown',
+                full_name: [initData.user?.first_name, initData.user?.last_name]
+                    .filter(Boolean).join(' ') || 'unknown'
+            };
+        }
+        
+        // Подключение к устройству
+        function connectToDevice() {
+            const wsUrl = document.getElementById('wsUrl').value;
+            if (!wsUrl) {
+                showError('Введите URL устройства');
+                return;
+            }
             
-            // Показываем подтверждение
-            webApp.showAlert(`Ваш ID (${userId}) отправлен на устройство!`);
+            try {
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = () => {
+                    connectionStatus.className = 'status success';
+                    connectionStatus.textContent = 'Успешно подключено к устройству!';
+                    
+                    // Показываем информацию о пользователе
+                    userData = getUserInfo();
+                    userIdElement.textContent = userData.user_id;
+                    userNameElement.textContent = userData.full_name;
+                    userInfoSection.style.display = 'block';
+                };
+                
+                websocket.onerror = (error) => {
+                    showError(`Ошибка подключения: ${error.message}`);
+                };
+                
+                websocket.onclose = (event) => {
+                    if (!event.wasClean) {
+                        showError(`Соединение прервано: ${event.reason || 'Unknown reason'}`);
+                    }
+                };
+                
+                websocket.onmessage = (event) => {
+                    try {
+                        const response = JSON.parse(event.data);
+                        if (response.status === 'success') {
+                            sendStatus.className = 'status success';
+                            sendStatus.textContent = response.message;
+                        } else {
+                            sendStatus.className = 'status error';
+                            sendStatus.textContent = response.message || 'Ошибка на устройстве';
+                        }
+                    } catch (e) {
+                        sendStatus.className = 'status error';
+                        sendStatus.textContent = 'Неверный ответ от устройства';
+                    }
+                };
+                
+            } catch (e) {
+                showError(`Ошибка создания подключения: ${e.message}`);
+            }
+        }
+        
+        // Отправка ID пользователя
+        function sendUserId() {
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                showError('Нет подключения к устройству');
+                return;
+            }
+            
+            if (!userData) {
+                showError('Информация о пользователе не получена');
+                return;
+            }
+            
+            const data = {
+                action: 'user_id_sent',
+                ...userData
+            };
+            
+            websocket.send(JSON.stringify(data));
+            sendStatus.className = 'status';
+            sendStatus.textContent = 'Отправка данных...';
+            sendStatus.style.display = 'block';
+        }
+        
+        function showError(message) {
+            connectionStatus.className = 'status error';
+            connectionStatus.textContent = message;
+            connectionStatus.style.display = 'block';
         }
     </script>
 </body>
