@@ -3,17 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <title>Telegram ID Sender</title>
 </head>
 <body>
   <h1>📡 Отправить Telegram ID</h1>
   <button onclick="send()">📤 Отправить ID</button>
-
   <script>
     Telegram.WebApp.ready();
     function send() {
-      const userId = Telegram.WebApp.initDataUnsafe.user?.id;
-      Telegram.WebApp.sendData(JSON.stringify({ id: userId }));
+      const id = Telegram.WebApp.initDataUnsafe.user?.id;
+      Telegram.WebApp.sendData(JSON.stringify({ id }));
     }
   </script>
 </body>
