@@ -1,140 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mini App Cloud Integration</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background: #f5f7fa;
-        }
-        .container {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            background: #0088cc;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            margin: 20px 0;
-            transition: background 0.3s;
-        }
-        .btn:hover {
-            background: #006699;
-        }
-        .status {
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            margin: 20px 0;
-        }
-        .success {
-            background: #d4edda;
-            color: #155724;
-        }
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <title>Telegram ID Sender</title>
 </head>
 <body>
-    <div class="container">
-        <h1>Управление через облако</h1>
-        <div id="connectionStatus" class="status">
-            Инициализация...
-        </div>
-        
-        <button id="sendButton" class="btn" disabled>
-            Отправить мой ID на устройство
-        </button>
-    </div>
+  <h1>📡 Отправить Telegram ID</h1>
+  <button onclick="send()">📤 Отправить ID</button>
 
-    <script>
-        // Конфигурация Firebase (замените на вашу)
-        const firebaseConfig = {
-            apiKey: "AIzaSyAWistbI1pA54O91JiX9SJ25k67gJe2OAQ",
-            authDomain: "dhr-1e5f3.firebaseapp.com",
-            databaseURL: "https://dhr-1e5f3-default-rtdb.firebaseio.com",
-            projectId: "dhr-1e5f3",
-            storageBucket: "dhr-1e5f3.firebasestorage.app",
-            messagingSenderId: "833662368432",
-            appId: "1:833662368432:web:f616b2a0f4a8f54f345975"
-        };
-        
-        // Инициализация Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        
-        // Инициализация Telegram WebApp
-        const webApp = Telegram.WebApp;
-        webApp.ready();
-        webApp.expand();
-        
-        // Элементы интерфейса
-        const connectionStatus = document.getElementById('connectionStatus');
-        const sendButton = document.getElementById('sendButton');
-        
-        // Состояние
-        let firebaseInitialized = false;
-        
-        // Инициализация Firebase
-        try {
-            firebase.app(); // Проверяем инициализацию
-            firebaseInitialized = true;
-            connectionStatus.textContent = "Firebase подключен!";
-            connectionStatus.className = "status success";
-            sendButton.disabled = false;
-        } catch (e) {
-            connectionStatus.textContent = "Ошибка подключения к Firebase";
-            connectionStatus.className = "status error";
-            console.error("Firebase init error:", e);
-        }
-        
-        // Отправка данных на устройство
-        sendButton.addEventListener('click', () => {
-            if (!firebaseInitialized) {
-                webApp.showAlert("Ошибка: Firebase не инициализирован");
-                return;
-            }
-            
-            // Получаем информацию о пользователе
-            const initData = webApp.initDataUnsafe;
-            const userData = {
-                user_id: initData.user?.id || 'unknown',
-                username: initData.user?.username || 'unknown',
-                full_name: `${initData.user?.first_name || ''} ${initData.user?.last_name || ''}`.trim() || 'unknown',
-                action: "user_id_sent",
-                timestamp: new Date().toISOString()
-            };
-            
-            // Отправляем в Firebase
-            const commandRef = database.ref('commands').push();
-            commandRef.set(userData)
-                .then(() => {
-                    webApp.showAlert("✅ Ваш ID отправлен на устройство!");
-                })
-                .catch(error => {
-                    console.error("Firebase error:", error);
-                    webApp.showAlert("❌ Ошибка отправки данных: " + error.message);
-                });
-        });
-    </script>
+  <script>
+    Telegram.WebApp.ready();
+    function send() {
+      const userId = Telegram.WebApp.initDataUnsafe.user?.id;
+      Telegram.WebApp.sendData(JSON.stringify({ id: userId }));
+    }
+  </script>
 </body>
 </html>
