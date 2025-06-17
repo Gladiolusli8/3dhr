@@ -1,47 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Mini App</title>
+    <title>Test App</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background: #f5f7fa;
-            font-family: Arial, sans-serif;
-        }
-        .btn {
-            padding: 15px 30px;
-            font-size: 18px;
-            background: #0088cc;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        .btn:hover {
-            background: #006699;
-        }
+        body { display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .btn { padding: 15px 30px; font-size: 18px; font-weight: bold; color: white; background-color: #0088cc; border: none; border-radius: 10px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <button class="btn" onclick="sendData()">Отправить ID</button>
-    
+    <button class="btn" onclick="sendUserId()">Отправить мой ID</button>
+
     <script>
-        // Инициализация WebApp
-        Telegram.WebApp.ready();
-        Telegram.WebApp.expand();
-        
-        function sendData() {
-            // Отправляем пустой объект (нам важен только факт нажатия)
-            Telegram.WebApp.sendData(JSON.stringify({action: "button_click"}));
-            Telegram.WebApp.close();
+        // Инициализируем Mini App
+        const webApp = Telegram.WebApp;
+        webApp.ready();
+
+        function sendUserId() {
+            // Проверяем, что данные пользователя доступны
+            if (webApp.initDataUnsafe && webApp.initDataUnsafe.user) {
+                const userId = webApp.initDataUnsafe.user.id;
+                // Отправляем данные в виде JSON в ваш бот
+                webApp.sendData(JSON.stringify({ user_id: userId }));
+                webApp.close(); // Закрываем Mini App после отправки
+            } else {
+                // Если данные недоступны, отправляем ошибку (для отладки)
+                webApp.sendData(JSON.stringify({ error: "User data not available" }));
+                webApp.close();
+            }
         }
     </script>
 </body>
