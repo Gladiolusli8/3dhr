@@ -1,272 +1,101 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
+    <title>Mini App Test</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Управление 3D-принтером</title>
+    <!-- Обязательно подключите скрипт WebApp -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root {
-            --primary: #0088cc;
-            --danger: #e74c3c;
-            --success: #2ecc71;
-            --warning: #f39c12;
-        }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 15px;
-            background: #f5f7fa;
-            color: #333;
-            max-width: 100%;
-            overflow-x: hidden;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
         }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-            padding: 10px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-        .btn-group {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .btn {
-            padding: 12px;
+        button {
+            padding: 15px 25px;
+            font-size: 18px;
+            cursor: pointer;
             border: none;
             border-radius: 8px;
+            background-color: #0088cc;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #005f99;
+        }
+        #status {
+            margin-top: 20px;
             font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-align: center;
-        }
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-        .btn-warning {
-            background: var(--warning);
-            color: white;
-        }
-        .status-panel {
-            background: white;
-            border-radius: 10px;
-            padding: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-        }
-        .status-item {
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-        }
-        .connection-form {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-        #connection-status {
-            text-align: center;
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 5px;
+            color: #333;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Управление 3D-принтером</h1>
-        <p id="global-status">⚠️ Не подключено к устройству</p>
-    </div>
-    
-    <div class="connection-form" id="connection-form">
-        <h3>Подключение к устройству</h3>
-        <div class="form-group">
-            <label for="device-id">ID устройства:</label>
-            <input type="text" id="device-id" placeholder="Введите ID устройства">
-        </div>
-        <button class="btn btn-primary" onclick="connectToDevice()">Подключиться</button>
-        <div id="connection-status"></div>
-    </div>
-    
-    <div class="status-panel" id="control-panel" style="display: none;">
-        <h3>Текущий статус</h3>
-        <div class="status-item">
-            <span>Температура сопла:</span>
-            <span id="nozzle-temp">--°C</span>
-        </div>
-        <div class="status-item">
-            <span>Температура стола:</span>
-            <span id="bed-temp">--°C</span>
-        </div>
-        <div class="status-item">
-            <span>Позиция:</span>
-            <span id="position">X:-- Y:-- Z:--</span>
-        </div>
-    </div>
-    
-    <div class="btn-group" id="control-buttons" style="display: none;">
-        <button class="btn btn-primary" onclick="sendCommand('home')">🏠 Home</button>
-        <button class="btn btn-warning" onclick="sendCommand('preheat')">🔥 Прогрев</button>
-        <button class="btn btn-success" onclick="sendCommand('status')">🔄 Обновить</button>
-        <button class="btn btn-danger" onclick="sendCommand('cooldown')">❄️ Охлаждение</button>
-    </div>
-    
-    <div class="btn-group" id="print-buttons" style="display: none;">
-        <button class="btn btn-primary" onclick="sendCommand('pause')">⏸ Пауза</button>
-        <button class="btn btn-success" onclick="sendCommand('resume')">▶ Продолжить</button>
-        <button class="btn btn-danger" onclick="sendCommand('stop')">🛑 Стоп</button>
-        <button class="btn btn-warning" onclick="startRemotePrint()">🚀 Начать печать</button>
-    </div>
+
+    <h1>Тест Мини-приложения</h1>
+
+    <button id="sendUserIdBtn">Отправить мой ID на Orange Pi</button>
+
+    <p id="status"></p>
 
     <script>
-        // Инициализация Telegram WebApp
-        Telegram.WebApp.ready();
-        Telegram.WebApp.expand();
-        Telegram.WebApp.MainButton.hide();
-        
-        // Глобальные переменные
-        let deviceId = '';
-        let userId = '';
-        let wsConnection = null;
-        
-        // Попробуем получить ID пользователя из Telegram
-        try {
-            const tgUser = Telegram.WebApp.initDataUnsafe.user;
-            if (tgUser && tgUser.id) {
-                userId = tgUser.id;
-                document.getElementById('global-status').textContent = `👤 Пользователь: ${tgUser.first_name || 'Аноним'}`;
+        const webApp = Telegram.WebApp;
+        const statusElement = document.getElementById('status');
+        const sendButton = document.getElementById('sendUserIdBtn');
+
+        // Инициализация WebApp
+        webApp.ready();
+        webApp.expand(); // Расширить Mini App на весь экран
+
+        sendButton.addEventListener('click', function() {
+            // Получаем ID пользователя.
+            // В реальных приложениях НУЖНО ВАЛИДИРОВАТЬ webApp.initData!
+            // webApp.initDataUnsafe доступен только при определенных настройках бота,
+            // и данные из него не гарантированно безопасны без проверки initData.
+            // Используем для ПРОСТОТЫ примера.
+            const userId = webApp.initDataUnsafe && webApp.initDataUnsafe.user ? webApp.initDataUnsafe.user.id : 'unknown';
+
+            if (userId === 'unknown') {
+                 statusElement.textContent = 'Не удалось получить ID пользователя.';
+                 statusElement.style.color = 'red';
+                 console.error('Telegram.WebApp.initDataUnsafe.user is not available.');
+                 // Для тестов можно отправить просто команду без ID, если ID не получен
+                 const dataToSendWithoutId = {
+                     command: 'send_user_id_test',
+                     message: 'User ID not available'
+                 };
+                 webApp.sendData(JSON.stringify(dataToSendWithoutId));
+                 statusElement.textContent = 'Отправлена тестовая команда без ID.';
+                 statusElement.style.color = 'orange';
+
+            } else {
+                const dataToSend = {
+                    command: 'send_user_id', // Тип команды для бота
+                    payload: { // Дополнительные данные
+                        userId: userId
+                    }
+                };
+
+                // Отправляем данные в бота
+                webApp.sendData(JSON.stringify(dataToSend));
+
+                statusElement.textContent = `Отправлен ID: ${userId}`;
+                statusElement.style.color = 'green';
+                console.log('Sent data:', dataToSend);
             }
-        } catch (e) {
-            console.log('Не удалось получить данные пользователя Telegram');
-        }
-        
-        // Функция подключения к устройству
-        function connectToDevice() {
-            deviceId = document.getElementById('device-id').value.trim();
-            if (!deviceId) {
-                showStatus('❌ Введите ID устройства', 'error');
-                return;
-            }
-            
-            showStatus('⌛ Подключаемся...', 'info');
-            
-            // Здесь будет подключение через Replit
-            setTimeout(() => {
-                // Эмуляция успешного подключения
-                showStatus('✅ Успешно подключено!', 'success');
-                
-                // Показываем панели управления
-                document.getElementById('connection-form').style.display = 'none';
-                document.getElementById('control-panel').style.display = 'block';
-                document.getElementById('control-buttons').style.display = 'grid';
-                document.getElementById('print-buttons').style.display = 'grid';
-                
-                // Запрашиваем начальный статус
-                sendCommand('status');
-            }, 1500);
-        }
-        
-        // Функция отправки команд
-        function sendCommand(command) {
-            if (!deviceId) {
-                showStatus('❌ Сначала подключитесь к устройству', 'error');
-                return;
-            }
-            
-            // Здесь будет отправка команды на Replit
-            showStatus(`📤 Отправка: ${command}`, 'info');
-            
-            // Эмуляция получения статуса
-            setTimeout(() => {
-                if (command === 'status') {
-                    updateStatus({
-                        nozzleTemp: "210°C",
-                        bedTemp: "60°C",
-                        position: "X:75 Y:120 Z:0.2"
-                    });
-                    showStatus('✅ Статус получен', 'success');
-                } else {
-                    showStatus(`✅ Команда "${command}" выполнена`, 'success');
-                }
-            }, 1000);
-        }
-        
-        // Функция запуска удаленной печати
-        function startRemotePrint() {
-            sendCommand('start_remote_print');
-        }
-        
-        // Функция обновления статуса на экране
-        function updateStatus(data) {
-            if (data.nozzleTemp) document.getElementById('nozzle-temp').textContent = data.nozzleTemp;
-            if (data.bedTemp) document.getElementById('bed-temp').textContent = data.bedTemp;
-            if (data.position) document.getElementById('position').textContent = data.position;
-        }
-        
-        // Функция показа статуса
-        function showStatus(message, type) {
-            const statusEl = document.getElementById('connection-status');
-            statusEl.textContent = message;
-            statusEl.className = '';
-            
-            switch (type) {
-                case 'success':
-                    statusEl.style.color = '#2ecc71';
-                    statusEl.style.backgroundColor = '#d4edda';
-                    break;
-                case 'error':
-                    statusEl.style.color = '#e74c3c';
-                    statusEl.style.backgroundColor = '#f8d7da';
-                    break;
-                case 'info':
-                    statusEl.style.color = '#3498db';
-                    statusEl.style.backgroundColor = '#d1ecf1';
-                    break;
-                default:
-                    statusEl.style.color = '#6c757d';
-                    statusEl.style.backgroundColor = '#e2e3e5';
-            }
-            
-            statusEl.style.padding = '10px';
-            statusEl.style.borderRadius = '5px';
-            statusEl.style.marginTop = '10px';
-            statusEl.style.transition = 'all 0.3s';
-        }
-        
-        // Первоначальная настройка
-        document.getElementById('device-id').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') connectToDevice();
         });
+
+        // Опционально: Обработка обратной связи от бота (бот должен отправить сообщение в чат)
+        // Нет стандартного способа получить ответ ПРЯМО в Mini App после sendData
+        // Бот может отправить сообщение в чат Telegram.
+
     </script>
 </body>
 </html>
