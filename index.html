@@ -1,101 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mini App Test</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Обязательно подключите скрипт WebApp -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        body {
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background-color: #f0f0f0;
-            margin: 0;
-        }
-        button {
-            padding: 15px 25px;
-            font-size: 18px;
-            cursor: pointer;
-            border: none;
-            border-radius: 8px;
-            background-color: #0088cc;
-            color: white;
-            transition: background-color 0.3s ease;
-        }
-        button:hover {
-            background-color: #005f99;
-        }
-        #status {
-            margin-top: 20px;
-            font-size: 16px;
-            color: #333;
-        }
-    </style>
+  <title>Send ID to Device</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+  <h2>Telegram Mini App</h2>
+  <button onclick="sendUserId()">📤 Отправить ID</button>
 
-    <h1>Тест Мини-приложения</h1>
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
 
-    <button id="sendUserIdBtn">Отправить мой ID на Orange Pi</button>
-
-    <p id="status"></p>
-
-    <script>
-        const webApp = Telegram.WebApp;
-        const statusElement = document.getElementById('status');
-        const sendButton = document.getElementById('sendUserIdBtn');
-
-        // Инициализация WebApp
-        webApp.ready();
-        webApp.expand(); // Расширить Mini App на весь экран
-
-        sendButton.addEventListener('click', function() {
-            // Получаем ID пользователя.
-            // В реальных приложениях НУЖНО ВАЛИДИРОВАТЬ webApp.initData!
-            // webApp.initDataUnsafe доступен только при определенных настройках бота,
-            // и данные из него не гарантированно безопасны без проверки initData.
-            // Используем для ПРОСТОТЫ примера.
-            const userId = webApp.initDataUnsafe && webApp.initDataUnsafe.user ? webApp.initDataUnsafe.user.id : 'unknown';
-
-            if (userId === 'unknown') {
-                 statusElement.textContent = 'Не удалось получить ID пользователя.';
-                 statusElement.style.color = 'red';
-                 console.error('Telegram.WebApp.initDataUnsafe.user is not available.');
-                 // Для тестов можно отправить просто команду без ID, если ID не получен
-                 const dataToSendWithoutId = {
-                     command: 'send_user_id_test',
-                     message: 'User ID not available'
-                 };
-                 webApp.sendData(JSON.stringify(dataToSendWithoutId));
-                 statusElement.textContent = 'Отправлена тестовая команда без ID.';
-                 statusElement.style.color = 'orange';
-
-            } else {
-                const dataToSend = {
-                    command: 'send_user_id', // Тип команды для бота
-                    payload: { // Дополнительные данные
-                        userId: userId
-                    }
-                };
-
-                // Отправляем данные в бота
-                webApp.sendData(JSON.stringify(dataToSend));
-
-                statusElement.textContent = `Отправлен ID: ${userId}`;
-                statusElement.style.color = 'green';
-                console.log('Sent data:', dataToSend);
-            }
-        });
-
-        // Опционально: Обработка обратной связи от бота (бот должен отправить сообщение в чат)
-        // Нет стандартного способа получить ответ ПРЯМО в Mini App после sendData
-        // Бот может отправить сообщение в чат Telegram.
-
-    </script>
+    function sendUserId() {
+      tg.ready();
+      fetch('https://твой-сервер.onrender.com/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          device_id: "printer123",
+          command: tg.initDataUnsafe.user.id  // Отправка user.id как "команда"
+        })
+      })
+      .then(response => response.json())
+      .then(data => alert("ID отправлен!"))
+      .catch(err => alert("Ошибка: " + err));
+    }
+  </script>
 </body>
 </html>
