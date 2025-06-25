@@ -192,8 +192,8 @@
                 <div class="status-indicator"></div>
             </div>
             <div class="form-group">
-                <label for="token">Введите пароль (токен)</label>
-                <input type="password" id="token" placeholder="Токен устройства">
+                <label for="device-id">Введите ID устройства</label>
+                <input type="text" id="device-id" placeholder="Device ID">
             </div>
         </header>
 
@@ -239,21 +239,21 @@
     </div>
 
     <script>
-        const API_URL = 'https://f98a36ba-f519-47c4-99df-b07ac38acbe8-00-2btvma638tikv.pike.replit.dev/send'; // Вставь сюда свой URL
+        const API_URL = 'https://f98a36ba-f519-47c4-99df-b07ac38acbe8-00-2btvma638tikv.pike.replit.dev/'; // Укажи свой Replit URL
 
-        function getToken() {
-            return document.getElementById('token').value.trim();
+        function getDeviceId() {
+            return document.getElementById('device-id').value.trim();
         }
 
         async function sendCommand(command) {
-            const token = getToken();
-            if (!token) return alert('Введите токен!');
+            const deviceId = getDeviceId();
+            if (!deviceId) return alert('Введите ID устройства!');
 
             try {
-                const res = await fetch(API_URL, {
+                const res = await fetch(`${API_URL}/command`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: token, command: command })
+                    body: JSON.stringify({ device_id: deviceId, command: command })
                 });
 
                 const result = await res.json();
