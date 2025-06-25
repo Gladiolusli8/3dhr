@@ -1,32 +1,292 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-  <title>Send ID to Device</title>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление 3D-принтером</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --danger: #e74c3c;
+            --success: #2ecc71;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+            color: var(--light);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: rgba(44, 62, 80, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(236, 240, 241, 0.2);
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #4facfe, #00f2fe);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .status-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: var(--success);
+        }
+
+        .form-group {
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: 2px solid rgba(236, 240, 241, 0.3);
+            background: rgba(44, 62, 80, 0.7);
+            color: var(--light);
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-dark {
+            background: var(--dark);
+            color: white;
+        }
+
+        .send-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(to right, #4facfe, #00f2fe);
+            color: var(--dark);
+            font-weight: 700;
+            font-size: 18px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 25px;
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+
+            .btn-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h2>Telegram Mini App</h2>
-  <button onclick="sendUserId()">📤 Отправить ID</button>
+    <div class="container">
+        <header>
+            <h1>Управление 3D-принтером</h1>
+            <div class="status">
+                <span>Статус: Подключено</span>
+                <div class="status-indicator"></div>
+            </div>
+            <div class="form-group">
+                <label for="token">Введите пароль (токен)</label>
+                <input type="password" id="token" placeholder="Токен устройства">
+            </div>
+        </header>
 
-  <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
+        <div class="control-panel">
+            <h2 class="section-title">Основные команды</h2>
+            <div class="btn-grid">
+                <button class="btn btn-primary" onclick="sendCommand('G28')">🏠 Калибровка</button>
+                <button class="btn btn-primary" onclick="sendCommand('G1 X100 Y100 Z10')">↗️ Позиция</button>
+                <button class="btn btn-success" onclick="sendCommand('M104 S200')">🔥 Нагрев сопла</button>
+                <button class="btn btn-success" onclick="sendCommand('M140 S60')">🔥 Нагрев стола</button>
+                <button class="btn btn-dark" onclick="sendCommand('M25')">⏸ Пауза</button>
+                <button class="btn btn-dark" onclick="sendCommand('M24')">▶️ Продолжить</button>
+                <button class="btn btn-danger" onclick="sendCommand('M112')">🛑 Аварийная остановка</button>
+                <button class="btn btn-danger" onclick="sendCommand('M84')">🔌 Отключить двигатели</button>
+            </div>
+        </div>
 
-    function sendUserId() {
-      tg.ready();
-      fetch('https://f98a36ba-f519-47c4-99df-b07ac38acbe8-00-2btvma638tikv.pike.replit.dev/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          device_id: "printer123",
-          command: tg.initDataUnsafe.user.id  // Отправка user.id как "команда"
-        })
-      })
-      .then(response => response.json())
-      .catch(err => alert("Ошибка: " + err));
-    }
-  </script>
+        <div class="custom-command">
+            <h2 class="section-title">Произвольная команда</h2>
+            <div class="form-group">
+                <input type="text" id="gcode-command" placeholder="Введите G-код (например, G0 X10 Y20 Z5)">
+            </div>
+            <button class="send-btn" onclick="sendCustomCommand()">Отправить команду</button>
+        </div>
+
+        <div class="temperature-control">
+            <h2 class="section-title">Управление температурой</h2>
+            <div class="form-group">
+                <label for="nozzle-temp">Температура сопла (°C)</label>
+                <input type="number" id="nozzle-temp" min="0" max="300" value="200">
+            </div>
+            <div class="form-group">
+                <label for="bed-temp">Температура стола (°C)</label>
+                <input type="number" id="bed-temp" min="0" max="120" value="60">
+            </div>
+            <button class="send-btn" onclick="setTemperatures()">Установить температуру</button>
+        </div>
+
+        <div class="footer">
+            <p>Printer Control System v1.0</p>
+            <p>© 2024 Все права защищены</p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://your-replit-url.repl.co/send'; // Вставь сюда свой URL
+
+        function getToken() {
+            return document.getElementById('token').value.trim();
+        }
+
+        async function sendCommand(command) {
+            const token = getToken();
+            if (!token) return alert('Введите токен!');
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token, command: command })
+                });
+
+                const result = await res.json();
+                if (res.ok) {
+                    alert(`Команда отправлена: ${command}`);
+                } else {
+                    alert(`Ошибка: ${result.status}`);
+                }
+            } catch (err) {
+                alert('Ошибка сети');
+            }
+        }
+
+        function sendCustomCommand() {
+            const command = document.getElementById('gcode-command').value.trim();
+            if (command) {
+                sendCommand(command);
+                document.getElementById('gcode-command').value = '';
+            } else {
+                alert('Введите команду!');
+            }
+        }
+
+        function setTemperatures() {
+            const nozzleTemp = document.getElementById('nozzle-temp').value;
+            const bedTemp = document.getElementById('bed-temp').value;
+
+            if (nozzleTemp && bedTemp) {
+                sendCommand(`M104 S${nozzleTemp}`);
+                sendCommand(`M140 S${bedTemp}`);
+                alert(`Температуры установлены: Сопло ${nozzleTemp}°C, Стол ${bedTemp}°C`);
+            }
+        }
+    </script>
 </body>
 </html>
